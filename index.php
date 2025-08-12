@@ -27,6 +27,7 @@ try {
         $stocks = [];
         foreach ($symbols as  $index => $symbol) {
             try {
+                $equityData = $nse->getEquityPriceByDate($symbol, new DateTime());
                 $derivativeData = $nse->getDerivativeData($symbol);
                 if (!$derivativeData) {
                     throw new Exception("No data found for symbol: $symbol");
@@ -37,13 +38,23 @@ try {
                 $nextMonth = new DateTime($dates[1]);
                 $nextAfterMonth = new DateTime($dates[2]);
                 if($index == 0) {
-                    $headers = ['Stock', $currentMonth->format('M-Y'), $nextMonth->format('M-Y'), $nextAfterMonth->format('M-Y'), $nextMonth->format('M').'-'.$currentMonth->format('M').' % Spread', $nextAfterMonth->format('M').'-'.$nextMonth->format('M').' % Spread', 'Signal'];
+                    $headers = [
+                        'NAME',
+                        'Equity',
+                        $currentMonth->format('M-Y'),
+                        $nextMonth->format('M-Y'),
+                        'Diff ( ' . $currentMonth->format('M') . ' - Equity)',
+                        'Diff ( ' . $nextMonth->format('M') . ' - Equity)',
+                        '%-'.$currentMonth->format('M'),
+                        '%-'.$nextMonth->format('M'),
+                        'DIFF ( %'.$nextMonth->format('M').' - %'.$currentMonth->format('M').')'
+                    ];
                 }
                 $stocks[] = [
                     $symbol,
+                    $equityData,
                     $derivativeData[$dates[0]],
-                    $derivativeData[$dates[1]],
-                    $derivativeData[$dates[2]]
+                    $derivativeData[$dates[1]]
                 ];
             } catch (Exception $e) {
                 $errors[] = "Symbol <b>$symbol</b>: " . htmlspecialchars($e->getMessage());
@@ -59,11 +70,13 @@ try {
         $sheet->fromArray($stocks, null, 'A2');
 
         for ($row = 2; $row <= count($symbols) + 1; $row++) {
-            $sheet->setCellValue("E$row", "=IF(B$row<>\"\",((C$row-B$row)/B$row)*100,\"\")");
-            $sheet->setCellValue("F$row", "=IF(C$row<>\"\",((D$row-C$row)/C$row)*100,\"\")");
-            $sheet->setCellValue("G$row", "=IF(OR(E$row>1,F$row>1),\"✅ Opportunity\",IF(OR(E$row>0.5,F$row>0.5),\"⚠️ Moderate\",\"No Signal\"))");
+            $sheet->setCellValue("E$row", "=C$row-B$row");
+            $sheet->setCellValue("F$row", "=D$row-B$row");
+            $sheet->setCellValue("G$row", "=(E$row*100)/C$row");
+            $sheet->setCellValue("H$row", "=(F$row*100)/D$row");
+            $sheet->setCellValue("I$row", "=H$row-G$row");
         }
-        foreach (range('A', 'G') as $columnID) {
+        foreach (range('A', 'I') as $columnID) {
             $sheet->getColumnDimension($columnID)->setAutoSize(true);
         }
 
@@ -77,57 +90,6 @@ try {
         $writer->save($filepath);
 
         $downloadLink = "<a href='src/assets/spreadsheet/$filename' download class='mt-6 inline-block px-6 py-3 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition'>⬇️ Download the spreadsheet</a>";
-
-
-        // $lastMonth = new DateTime();
-        // $lastMonth->modify('-1 month');
-        // $lastBeforeMonth = new DateTime();
-        // $lastBeforeMonth->modify('-2 month');
-
-        // $spreadsheet = new Spreadsheet();
-        // $sheet = $spreadsheet->getActiveSheet();
-        // $sheet->setTitle('Sheet1');
-
-        // $headers = ['Stock', $lastBeforeMonth->format('M-Y'), $lastMonth->format('M-Y'), date('d-M-Y'), $lastMonth->format('M').'-'.$lastBeforeMonth->format('M').' % Spread', date('M').'-'.$lastMonth->format('M').' % Spread', 'Signal'];
-        // $sheet->fromArray($headers, null, 'A1');
-
-        // $stocks = [];
-        // foreach ($symbols as $symbol) {
-        //     try {
-        //         $stocks[] = [
-        //             $symbol,
-        //             $nse->getEquityPriceByDate($symbol, $lastBeforeMonth),
-        //             $nse->getEquityPriceByDate($symbol, $lastMonth),
-        //             $nse->getEquityPriceByDate($symbol, new DateTime())
-        //         ];
-        //     } catch (Exception $e) {
-        //         $errors[] = "Symbol <b>$symbol</b>: " . htmlspecialchars($e->getMessage());
-        //         $stocks[] = [$symbol, 'Error', 'Error', 'Error'];
-        //     }
-        //     sleepMilliseconds(500);
-        // }
-
-        // $sheet->fromArray($stocks, null, 'A2');
-
-        // for ($row = 2; $row <= count($symbols) + 1; $row++) {
-        //     $sheet->setCellValue("E$row", "=IF(B$row<>\"\",((C$row-B$row)/B$row)*100,\"\")");
-        //     $sheet->setCellValue("F$row", "=IF(C$row<>\"\",((D$row-C$row)/C$row)*100,\"\")");
-        //     $sheet->setCellValue("G$row", "=IF(OR(E$row>1,F$row>1),\"✅ Opportunity\",IF(OR(E$row>0.5,F$row>0.5),\"⚠️ Moderate\",\"No Signal\"))");
-        // }
-        // foreach (range('A', 'G') as $columnID) {
-        //     $sheet->getColumnDimension($columnID)->setAutoSize(true);
-        // }
-
-        // $dir = __DIR__ . '/src/assets/spreadsheet';
-        // if (!is_dir($dir)) {
-        //     mkdir($dir, 0777, true);
-        // }
-        // $filename = 'equity_data_' . date('Y_m_d_His') . '.xlsx';
-        // $filepath = $dir . '/' . $filename;
-        // $writer = new Xlsx($spreadsheet);
-        // $writer->save($filepath);
-
-        // $downloadLink = "<a href='src/assets/spreadsheet/$filename' download class='mt-6 inline-block px-6 py-3 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition'>⬇️ Download the spreadsheet</a>";
     }
 } catch (Throwable $e) {
     $errors[] = "Fatal error: " . htmlspecialchars($e->getMessage());
