@@ -1,0 +1,7 @@
+{
+    "require": {
+        "nesbot/carbon": "^3.10",
+        "guzzlehttp/guzzle": "^7.9",
+        "phpoffice/phpspreadsheet": "^4.5"
+    }
+}
