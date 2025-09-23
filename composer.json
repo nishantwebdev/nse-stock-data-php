@@ -27,9 +27,6 @@
         "nesbot/carbon": "^3.10",
         "guzzlehttp/guzzle": "^7.9"
     },
-    "suggest": {
-        "phpoffice/phpspreadsheet": "For Excel export functionality"
-    },
     "autoload": {
         "psr-4": {
             "NseData\\StockClient\\": "src/"

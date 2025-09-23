@@ -34,7 +34,6 @@ Thumbs.db
 
 # NSE API specific
 /src/assets/json/holiday_*.json
-/web-interface/src/assets/spreadsheet/*.xlsx
 
 # Cache files (generated at runtime)
 /tmp/nse-india-api/
