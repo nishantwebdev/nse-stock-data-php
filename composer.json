@@ -29,12 +29,12 @@
     },
     "autoload": {
         "psr-4": {
-            "NseData\\StockClient\\": "src/"
+            "NseData\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "NseData\\StockClient\\Tests\\": "tests/"
+            "NseData\\Tests\\": "tests/"
         }
     },
     "require-dev": {
