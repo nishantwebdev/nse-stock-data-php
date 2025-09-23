@@ -32,8 +32,6 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# NSE API specific
-/src/assets/json/holiday_*.json
 
 # Cache files (generated at runtime)
 /tmp/nse-india-api/
