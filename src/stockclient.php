@@ -1,30 +1,16 @@
 <?php
 
+namespace NseData;
+
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 
-require_once __DIR__ . '/utils.php';
+// Include the interfaces and utility functions
 require_once __DIR__ . '/interfaces.php';
+require_once __DIR__ . '/utils.php';
 
-enum ApiList: string
-{
-    case GLOSSARY = '/api/cmsContent?url=/glossary';
-    case HOLIDAY_TRADING = '/api/holiday-master?type=trading';
-    case HOLIDAY_CLEARING = '/api/holiday-master?type=clearing';
-    case MARKET_STATUS = '/api/marketStatus';
-    case MARKET_TURNOVER = '/api/market-turnover';
-    case ALL_INDICES = '/api/allIndices';
-    case INDEX_NAMES = '/api/index-names';
-    case CIRCULARS = '/api/circulars';
-    case LATEST_CIRCULARS = '/api/latest-circular';
-    case EQUITY_MASTER = '/api/equity-master';
-    case MARKET_DATA_PRE_OPEN = '/api/market-data-pre-open?key=ALL';
-    case MERGED_DAILY_REPORTS_CAPITAL = '/api/merged-daily-reports?key=favCapital';
-    case MERGED_DAILY_REPORTS_DERIVATIVES = '/api/merged-daily-reports?key=favDerivatives';
-    case MERGED_DAILY_REPORTS_DEBT = '/api/merged-daily-reports?key=favDebt';
-}
 
-class NseIndia
+class StockClient
 {
     private string $baseUrl = 'https://www.nseindia.com';
     private int $cookieMaxAge = 60; // in seconds
@@ -140,9 +126,10 @@ class NseIndia
     public function getHolidayData(): array
     {
         $year = date('Y');
-        $holidayFile = __DIR__ . '/assets/json/holiday_' . $year . '.json';
+        $holidayFile = $this->getHolidayFilePath($year);
+        
         if (!file_exists($holidayFile)) {
-            $holidayData = $this->getDataByEndpoint(ApiList::HOLIDAY_TRADING->value);
+            $holidayData = $this->getDataByEndpoint('/api/holiday-master?type=trading');
 
             if (!is_array($holidayData) || empty($holidayData)) {
                 throw new Exception('Failed to fetch holiday data');
@@ -165,12 +152,57 @@ class NseIndia
     }
 
     /**
-     * Check if the given date is a holiday.
+     * Get holiday file path for a specific year.
      *
-     * @param DateTime $date
+     * @param int $year
+     * @return string
+     */
+    private function getHolidayFilePath(int $year): string
+    {
+        // Use sys_get_temp_dir() for better cross-platform compatibility
+        $cacheDir = sys_get_temp_dir() . '/nse-india-api/cache';
+        if (!is_dir($cacheDir)) {
+            mkdir($cacheDir, 0777, true);
+        }
+        return $cacheDir . '/holiday_' . $year . '.json';
+    }
+
+    /**
+     * Clear holiday cache for a specific year or all years.
+     *
+     * @param int|null $year If null, clears all cached holiday data
      * @return bool
      */
-    public function checkHoliday(DateTime $date): bool
+    public function clearHolidayCache(?int $year = null): bool
+    {
+        $cacheDir = sys_get_temp_dir() . '/nse-india-api/cache';
+        
+        if ($year === null) {
+            // Clear all holiday files
+            $files = glob($cacheDir . '/holiday_*.json');
+            foreach ($files as $file) {
+                if (file_exists($file)) {
+                    unlink($file);
+                }
+            }
+            return true;
+        } else {
+            // Clear specific year
+            $holidayFile = $this->getHolidayFilePath($year);
+            if (file_exists($holidayFile)) {
+                return unlink($holidayFile);
+            }
+            return true;
+        }
+    }
+
+    /**
+     * Check if the given date is a holiday.
+     *
+     * @param \DateTime $date
+     * @return bool
+     */
+    public function checkHoliday(\DateTime $date): bool
     {
         // Check if Saturday (6) or Sunday (0)
         $dayOfWeek = (int)$date->format('w');
@@ -184,21 +216,28 @@ class NseIndia
     }
 
     /**
-     * Get all stock symbols.
+     * Get market status.
      *
-     * @return array<string>
+     * @return MarketStatus
      */
-    public function getAllStockSymbols(): array
+    public function getMarketStatus(): MarketStatus
     {
-        $data = $this->getDataByEndpoint(ApiList::MARKET_DATA_PRE_OPEN->value);
-        echo "<pre>";
-        print_r($data);
-        echo "</pre>";
-        exit;
-        $symbols = array_map(fn ($obj) => $obj['metadata']['symbol'], $data);
-        sort($symbols);
-        return $symbols;
+        $data = $this->getDataByEndpoint('/api/marketStatus');
+        return new MarketStatus($data);
     }
+
+    /**
+     * Get all indices.
+     *
+     * @return array<Index>
+     */
+
+    public function getAllIndices(): array
+    {
+        $data = $this->getDataByEndpoint('/api/allIndices');
+        return array_map(fn ($item) => new Index($item), $data['data']);
+    }
+
 
     /**
      * Get equity details.
@@ -209,10 +248,6 @@ class NseIndia
     public function getEquityDetails(string $symbol): EquityDetails
     {
         $data = $this->getDataByEndpoint('/api/quote-equity?symbol=' . urlencode(strtoupper($symbol)));
-        // echo "<pre>";
-        // print_r($data);
-        // echo "</pre>";
-        // exit;
         return new EquityDetails($data);
     }
 
@@ -272,8 +307,8 @@ class NseIndia
         $activeSeries = !empty($data->info->activeSeries) ? $data->info->activeSeries[0] : 'EQ';
         if ($range === null) {
             $range = new DateRange([
-            'start' => new DateTime($data->metadata->listingDate),
-            'end' => new DateTime()
+            'start' => (new \DateTime())->modify('-1 month'),
+            'end' => new \DateTime()
             ]);
         }
         $dateRanges = getDateRangeChunks($range->start, $range->end, 66);
@@ -289,11 +324,11 @@ class NseIndia
      * Get equity price by date.
      *
      * @param string $symbol
-     * @param DateTime $date
+     * @param \DateTime $date
      * @return int|float
      * @throws Exception
      */
-    public function getEquityPriceByDate(string $symbol, DateTime $date): int|float
+    public function getEquityPriceByDate(string $symbol, \DateTime $date): int|float
     {
         // if date is today then return the current price
         if ($date->format('d-m-Y') === date('d-m-Y')) {
@@ -319,46 +354,7 @@ class NseIndia
         // Return the last traded price for the given date
         return $equityData["data"][0]["CH_LAST_TRADED_PRICE"] ?? 0;
     }
-    /**
-     * Get derivative data for a given symbol.
-     *
-     * @param string $symbol
-     * @return mixed
-     */
-    public function getDerivativeData(string $symbol): mixed
-    {
-        $endpoint = '/api/quote-derivative?symbol=' . urlencode(strtoupper($symbol));
-        $derivativeData = $this->getDataByEndpoint($endpoint);
-
-        // Filter only "Stock Futures" and map to required structure
-        $futuresData = [];
-        foreach ($derivativeData['stocks'] as $stock) {
-            if (
-                isset($stock['metadata']['instrumentType']) &&
-                $stock['metadata']['instrumentType'] === 'Stock Futures' &&
-                isset($stock['metadata']['expiryDate'], $stock['metadata']['lastPrice'])
-            ) {
-                $futuresData[$stock['metadata']['expiryDate']] = $stock['metadata']['lastPrice'];
-            }
-        }
-        return $futuresData;
-    }
-    /**
-     * Get equity series.
-     *
-     * @param string $symbol
-     * @return SeriesData
-     */
-    public function getEquitySeries(string $symbol): SeriesData
-    {
-        $data = $this->getDataByEndpoint('/api/historical/cm/equity/series?symbol=' . urlencode(strtoupper($symbol)));
-        // echo "<pre>";
-        // print_r($data);
-        // echo "</pre>";
-        // exit;
-        return new SeriesData($data);
-    }
-
+    
     /**
      * Get equity stock indices.
      *
@@ -368,29 +364,9 @@ class NseIndia
     public function getEquityStockIndices(string $index): IndexDetails
     {
         $data = $this->getDataByEndpoint('/api/equity-stockIndices?index=' . urlencode(strtoupper($index)));
-        echo "<pre>";
-        print_r($data);
-        echo "</pre>";
-        exit;
         return new IndexDetails($data);
     }
 
-    /**
-     * Get index intraday data.
-     *
-     * @param string $index
-     * @param bool $isPreOpenData
-     * @return IntradayData
-     */
-    public function getIndexIntradayData(string $index, bool $isPreOpenData = false): IntradayData
-    {
-        $endpoint = '/api/chart-databyindex?index=' . urlencode(strtoupper($index)) . '&indices=true';
-        if ($isPreOpenData) {
-            $endpoint .= '&preopen=true';
-        }
-        $data = $this->getDataByEndpoint($endpoint);
-        return new IntradayData($data);
-    }
 
     /**
      * Get index historical data.
@@ -410,39 +386,4 @@ class NseIndia
         return array_map(fn ($data) => new IndexHistoricalData($data), $promises);
     }
 
-    /**
-     * Get index option chain.
-     *
-     * @param string $indexSymbol
-     * @return OptionChainData
-     */
-    public function getIndexOptionChain(string $indexSymbol): OptionChainData
-    {
-        $data = $this->getDataByEndpoint('/api/option-chain-indices?symbol=' . urlencode(strtoupper($indexSymbol)));
-        return new OptionChainData($data);
-    }
-
-    /**
-     * Get equity option chain.
-     *
-     * @param string $symbol
-     * @return OptionChainData
-     */
-    public function getEquityOptionChain(string $symbol): OptionChainData
-    {
-        $data = $this->getDataByEndpoint('/api/option-chain-equities?symbol=' . urlencode(strtoupper($symbol)));
-        return new OptionChainData($data);
-    }
-
-    /**
-     * Get commodity option chain.
-     *
-     * @param string $symbol
-     * @return OptionChainData
-     */
-    public function getCommodityOptionChain(string $symbol): OptionChainData
-    {
-        $data = $this->getDataByEndpoint('/api/option-chain-com?symbol=' . urlencode(strtoupper($symbol)));
-        return new OptionChainData($data);
-    }
 }

@@ -1,30 +1,107 @@
 <?php
 
-class IntradayData
+namespace NseData;
+
+class MarketStatus
 {
-    public string $identifier;
-    public string $name;
-    public array $graphData; // [number, number]
-    public float $closePrice;
+    public array $marketState;
+    public MarketCap $marketCap;
+    public GiftNifty $giftNifty;
 
     public function __construct(array $data)
     {
-        $this->identifier = $data['identifier'] ?? '';
-        $this->name = $data['name'] ?? '';
-        $this->graphData = $data['graphData'] ?? [];
-        $this->closePrice = $data['closePrice'] ?? 0.0;
+        $this->marketState = array_map(fn($state) => new MarketState($state), $data['marketState'] ?? []);
+        $this->marketCap = new MarketCap($data['marketcap'] ?? []);
+        $this->giftNifty = new GiftNifty($data['giftnifty'] ?? []);
     }
 }
 
-class DateRange
+class MarketState 
 {
-    public DateTime $start;
-    public DateTime $end;
+    public string $market;
+    public string $marketStatus; 
+    public string $tradeDate;
+    public string|null $index;
+    public float|null $last;
+    public float|null $variation;
+    public float|null $percentChange;
+    public string $marketStatusMessage;
 
     public function __construct(array $data)
     {
-        $this->start = $data['start'] ?? new DateTime();
-        $this->end = $data['end'] ?? new DateTime();
+        $this->market = $data['market'] ?? '';
+        $this->marketStatus = $data['marketStatus'] ?? '';
+        $this->tradeDate = $data['tradeDate'] ?? '';
+        $this->index = $data['index'] ?? null;
+        $this->last = isset($data['last']) && $data['last'] !== '' ? (float)$data['last'] : null;
+        $this->variation = isset($data['variation']) && $data['variation'] !== '' ? (float)$data['variation'] : null;
+        $this->percentChange = isset($data['percentChange']) && $data['percentChange'] !== '' ? (float)$data['percentChange'] : null;
+        $this->marketStatusMessage = $data['marketStatusMessage'] ?? '';
+    }
+}
+
+class MarketCap
+{
+    public string $timeStamp;
+    public float $marketCapInTrDollars;
+    public float $marketCapInLacCrRupees;
+    public float $marketCapInCrRupees;
+    public string $marketCapInCrRupeesFormatted;
+    public string $marketCapInLacCrRupeesFormatted;
+    public string $underlying;
+
+    public function __construct(array $data) 
+    {
+        $this->timeStamp = $data['timeStamp'] ?? '';
+        $this->marketCapInTrDollars = $data['marketCapinTRDollars'] ?? 0.0;
+        $this->marketCapInLacCrRupees = $data['marketCapinLACCRRupees'] ?? 0.0;
+        $this->marketCapInCrRupees = $data['marketCapinCRRupees'] ?? 0.0;
+        $this->marketCapInCrRupeesFormatted = $data['marketCapinCRRupeesFormatted'] ?? '';
+        $this->marketCapInLacCrRupeesFormatted = $data['marketCapinLACCRRupeesFormatted'] ?? '';
+        $this->underlying = $data['underlying'] ?? '';
+    }
+}
+
+class GiftNifty
+{
+    public string $instrumentType;
+    public string $symbol;
+    public string $expiryDate;
+    public string $optionType;
+    public string $strikePrice;
+    public float $lastPrice;
+    public float $dayChange;
+    public float $percentChange;
+    public int $contractsTraded;
+    public string $timestamp;
+    public string $id;
+
+    public function __construct(array $data)
+    {
+        $this->instrumentType = $data['INSTRUMENTTYPE'] ?? '';
+        $this->symbol = $data['SYMBOL'] ?? '';
+        $this->expiryDate = $data['EXPIRYDATE'] ?? '';
+        $this->optionType = $data['OPTIONTYPE'] ?? '';
+        $this->strikePrice = $data['STRIKEPRICE'] ?? '';
+        $this->lastPrice = $data['LASTPRICE'] ?? 0.0;
+        $this->dayChange = $data['DAYCHANGE'] ?? 0.0;
+        $this->percentChange = $data['PERCHANGE'] ?? 0.0;
+        $this->contractsTraded = $data['CONTRACTSTRADED'] ?? 0;
+        $this->timestamp = $data['TIMESTMP'] ?? '';
+        $this->id = $data['id'] ?? '';
+    }
+}
+
+
+class DateRange
+{
+    public \DateTime $start;
+    public \DateTime $end;
+
+    public function __construct(array $data)
+    {
+        $this->start = $data['start'] ?? new \DateTime();
+        $this->end = $data['end'] ?? new \DateTime();
     }
 }
 
@@ -68,17 +145,6 @@ class EquityInfo
     }
 }
 
-class OptionChainData
-{
-    public Records $records;
-    public Filtered $filtered;
-
-    public function __construct(array $data)
-    {
-        $this->records = new Records($data['records'] ?? []);
-        $this->filtered = new Filtered($data['filtered'] ?? []);
-    }
-}
 
 class Records
 {
@@ -476,16 +542,27 @@ class IndexHistoricalData
     }
 }
 
-class SeriesData
+class Index
 {
-    public array $data; // string[]
+    public string $name;
+    public string $symbol;
+    public float $open;
+    public float $dayHigh;
+    public float $dayLow;
+    public float $lastPrice;
+    public float $previousClose;
 
     public function __construct(array $data)
     {
-        $this->data = $data['data'] ?? [];
+         $this->name = $data['index'] ?? '';
+         $this->symbol = $data['indexSymbol'] ?? '';
+         $this->open = $data['open'] ?? 0.0;
+         $this->dayHigh = $data['high'] ?? 0.0;
+         $this->dayLow = $data['low'] ?? 0.0;
+         $this->lastPrice = $data['last'] ?? 0.0;
+         $this->previousClose = $data['previousClose'] ?? 0.0;
     }
 }
-
 class IndexEquityInfo
 {
     public int $priority;

@@ -1,2 +1,40 @@
+# Dependencies
 /vendor/
-/src/assets/spreadsheet/
+composer.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Cache
+/cache/
+/tmp/
+
+# Test coverage
+/coverage/
+
+# Build artifacts
+/build/
+/dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# NSE API specific
+/src/assets/json/holiday_*.json
+/web-interface/src/assets/spreadsheet/*.xlsx
+
+# Cache files (generated at runtime)
+/tmp/nse-india-api/
