@@ -115,8 +115,6 @@ Get current market status including market state, trade date, and other market i
 **Example:**
 ```php
 $marketStatus = $nse->getMarketStatus();
-echo "Market State: " . $marketStatus->marketState;
-echo "Trade Date: " . $marketStatus->tradeDate;
 ```
 
 #### Index Methods
@@ -129,11 +127,6 @@ Get all available market indices with their current values and changes.
 **Example:**
 ```php
 $indices = $nse->getAllIndices();
-foreach ($indices as $index) {
-    echo "Index: " . $index->index . "\n";
-    echo "Last: " . $index->last . "\n";
-    echo "Change: " . $index->change . "\n";
-}
 ```
 
 ##### `getEquityStockIndices(string $index): IndexDetails`
@@ -147,8 +140,6 @@ Get detailed information for a specific equity stock index.
 **Example:**
 ```php
 $niftyDetails = $nse->getEquityStockIndices('NIFTY 50');
-echo "Index: " . $niftyDetails->index;
-echo "Last: " . $niftyDetails->last;
 ```
 
 #### Equity Information Methods
@@ -180,8 +171,6 @@ Get detailed trade information for a specific equity including volume, value, an
 **Example:**
 ```php
 $tradeInfo = $nse->getEquityTradeInfo('TCS');
-echo "Total Traded Volume: " . $tradeInfo->totalTradedVolume;
-echo "Total Traded Value: ₹" . $tradeInfo->totalTradedValue;
 ```
 
 ##### `getEquityCorporateInfo(string $symbol): EquityCorporateInfo`
@@ -195,8 +184,7 @@ Get corporate information for a specific equity including company details, annou
 **Example:**
 ```php
 $corporateInfo = $nse->getEquityCorporateInfo('TCS');
-echo "Company Name: " . $corporateInfo->companyName;
-echo "Industry: " . $corporateInfo->industry;
+
 ```
 
 ##### `getEquityIntradayData(string $symbol, bool $isPreOpenData = false): IntradayData`
@@ -287,15 +275,6 @@ $dateRange = new DateRange(['start' => $startDate, 'end' => $endDate]);
 
 $indexData = $nse->getIndexHistoricalData('NIFTY 50', $dateRange);
 
-foreach ($indexData as $data) {
-    foreach ($data->data as $record) {
-        echo "Date: " . $record->CH_TIMESTAMP;
-        echo "Open: " . $record->CH_OPENING_INDEX_VALUE;
-        echo "High: " . $record->CH_HIGH_INDEX_VALUE;
-        echo "Low: " . $record->CH_LOW_INDEX_VALUE;
-        echo "Close: " . $record->CH_CLOSING_INDEX_VALUE;
-    }
-}
 ```
 
 #### Holiday Data Management Methods

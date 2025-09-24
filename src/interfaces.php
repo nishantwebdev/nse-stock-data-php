@@ -648,3 +648,19 @@ class IndexDetails
         $this->date365dAgo = $data['date365dAgo'] ?? '';
     }
 }
+
+class IntradayData
+{
+    public string $identifier;
+    public string $name;
+    public array $grapthData; // [number, number]
+    public float $closePrice;
+
+    public function __construct(array $data)
+    {
+        $this->identifier = $data['identifier'] ?? '';
+        $this->name = $data['name'] ?? '';
+        $this->grapthData = $data['grapthData'] ?? [];
+        $this->closePrice = $data['closePrice'] ?? 0.0;
+    }
+}
